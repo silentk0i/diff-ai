@@ -1,0 +1,18 @@
+diff --git a/auth/service.py b/auth/service.py
+index 1111111..2222222 100644
+--- a/auth/service.py
++++ b/auth/service.py
+@@ -1,6 +1,11 @@
+-def can_access(user, resource):
+-    return True
++def can_access(user, resource):
++    if user is None:
++        return False
++    if resource.owner_id == user.id:
++        return True
++    if "admin" in user.roles:
++        return True
++    return False
+
+ def issue_token(user):
+     return create_token(user.id)

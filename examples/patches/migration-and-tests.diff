@@ -1,0 +1,24 @@
+diff --git a/db/migrations/20260214_add_status.sql b/db/migrations/20260214_add_status.sql
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/db/migrations/20260214_add_status.sql
+@@ -0,0 +1,6 @@
++ALTER TABLE orders ADD COLUMN status TEXT;
++UPDATE orders SET status = 'pending' WHERE status IS NULL;
++
++-- rollback
++-- ALTER TABLE orders DROP COLUMN status;
++
+diff --git a/tests/test_orders.py b/tests/test_orders.py
+index 3333333..4444444 100644
+--- a/tests/test_orders.py
++++ b/tests/test_orders.py
+@@ -2,4 +2,8 @@ def test_create_order():
+     order = create_order()
+     assert order.id is not None
+
++def test_default_status_pending():
++    order = create_order()
++    assert order.status == "pending"
++

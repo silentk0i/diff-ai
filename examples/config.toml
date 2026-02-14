@@ -1,0 +1,34 @@
+format = "json"
+fail_above = 45
+include = ["src/**", "auth/**", "db/**"]
+exclude = ["docs/**", "examples/**"]
+
+[rules]
+enable = [
+  "magnitude",
+  "critical_paths",
+  "test_signals",
+  "dependency_changes",
+  "config_changes",
+  "dangerous_patterns",
+  "error_handling",
+  "api_surface",
+  "docs_only",
+  "destructive_changes",
+]
+disable = ["docs_only"]
+
+[llm]
+style = "thorough"
+persona = "reviewer"
+target_score = 30
+include_diff = "top-hunks"
+include_snippets = "risky-only"
+max_bytes = 120000
+redact_secrets = true
+rubric = [
+  "keep patch minimal and focused",
+  "do not change public API contracts without tests",
+  "add regression tests for risky code paths",
+  "explain rollback considerations for migrations/infra changes",
+]
