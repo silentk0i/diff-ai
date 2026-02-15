@@ -28,7 +28,8 @@ from diff_ai.handoff import (
     truncate_text_to_bytes,
 )
 from diff_ai.output import build_json_payload, render_human, render_json
-from diff_ai.rules import build_rules, list_rule_info
+from diff_ai.plugins import PluginRun, list_plugin_info, schedule_plugin_rules
+from diff_ai.rules import build_rules, list_rule_info, resolve_active_packs
 from diff_ai.rules.base import Rule
 from diff_ai.scoring import ScoreResult, score_files
 
@@ -108,6 +109,7 @@ def score_command(
                 input_source=score_ctx.input_source,
                 base=base,
                 head=head,
+                plugin_runs=score_ctx.plugin_runs,
             )
         )
     else:
@@ -341,6 +343,7 @@ def bundle_command(
         input_source=score_ctx.input_source,
         base=base,
         head=head,
+        plugin_runs=score_ctx.plugin_runs,
     )
 
     if resolved_redact:
@@ -439,6 +442,94 @@ def rules_command(
     typer.echo("\n".join(lines))
 
 
+@app.command("plugins")
+def plugins_command(
+    repo: Annotated[Path, typer.Option(help="Repository path.")] = Path("."),
+    format: Annotated[str, typer.Option(help="Output format: human|json.")] = "human",
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run/--no-dry-run",
+            help="Preview scheduler decisions using objective packs/mode/budget.",
+        ),
+    ] = True,
+    config_file: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to config TOML file."),
+    ] = None,
+) -> None:
+    """List available plugins and optionally preview scheduling decisions."""
+    output_format = format.lower()
+    if output_format not in {"human", "json"}:
+        raise typer.BadParameter("format must be one of: human, json", param_hint="--format")
+
+    app_config = _load_config_or_raise(repo, config_file)
+    plugin_info = list_plugin_info(include_builtin=app_config.plugins.include_builtin)
+
+    active_packs: list[str] | None = None
+    schedule_runs: list[PluginRun] = []
+    if dry_run:
+        resolved_active_packs = _resolve_active_packs_or_raise(app_config)
+        _, schedule_runs = _schedule_plugins_or_raise(
+            app_config,
+            active_packs=resolved_active_packs,
+        )
+        active_packs = sorted(resolved_active_packs)
+
+    runs_by_id = {run.plugin_id: run for run in schedule_runs}
+
+    if output_format == "json":
+        payload = {
+            "plugins": [
+                {
+                    "plugin_id": item.plugin_id,
+                    "rule_id": item.rule_id,
+                    "description": item.description,
+                    "category": item.category,
+                    "packs": list(item.packs),
+                    "estimated_cost_seconds": item.estimated_cost_seconds,
+                    "modes": list(item.modes),
+                    "priority": item.priority,
+                    "schedule": runs_by_id[item.plugin_id].to_dict()
+                    if item.plugin_id in runs_by_id
+                    else None,
+                }
+                for item in plugin_info
+            ],
+            "meta": {
+                "config_source": app_config.source,
+                "dry_run": dry_run,
+                "objective_mode": app_config.objective.mode,
+                "objective_budget_seconds": app_config.objective.budget_seconds,
+                "active_packs": active_packs,
+            },
+        }
+        typer.echo(json.dumps(payload, sort_keys=True))
+        return
+
+    lines = ["Available plugins:"]
+    if not plugin_info:
+        lines.append("- none")
+    for item in plugin_info:
+        run = runs_by_id.get(item.plugin_id)
+        schedule_text = (
+            f"{run.status} ({run.reason})"
+            if run is not None
+            else "not-previewed"
+        )
+        lines.append(
+            f"- {item.plugin_id} rule={item.rule_id} category={item.category} "
+            f"packs={list(item.packs)} cost={item.estimated_cost_seconds:.1f}s "
+            f"modes={list(item.modes)} priority={item.priority} schedule={schedule_text}"
+        )
+
+    if dry_run and active_packs is not None:
+        lines.append(f"active_packs={active_packs}")
+        lines.append(f"objective_mode={app_config.objective.mode}")
+        lines.append(f"objective_budget_seconds={app_config.objective.budget_seconds}")
+    typer.echo("\n".join(lines))
+
+
 @app.command("config")
 def config_command(
     repo: Annotated[Path, typer.Option(help="Repository path.")] = Path("."),
@@ -477,6 +568,9 @@ def config_command(
         f"- objective.packs.enable: {payload['objective']['packs']['enable']}",
         f"- objective.packs.disable: {payload['objective']['packs']['disable']}",
         f"- objective.weights: {payload['objective']['weights']}",
+        f"- plugins.include_builtin: {payload['plugins']['include_builtin']}",
+        f"- plugins.enable: {payload['plugins']['enable']}",
+        f"- plugins.disable: {payload['plugins']['disable']}",
         f"- active_rule_ids: {payload['active_rule_ids']}",
     ]
     typer.echo("\n".join(lines))
@@ -637,11 +731,13 @@ class _ScoreContext:
         files: list[FileDiff],
         diff_text: str,
         input_source: str,
+        plugin_runs: list[PluginRun],
     ) -> None:
         self.result = result
         self.files = files
         self.diff_text = diff_text
         self.input_source = input_source
+        self.plugin_runs = plugin_runs
 
 
 def _prepare_score_context(
@@ -669,13 +765,43 @@ def _prepare_score_context(
     include_patterns = include if include is not None else app_config.include
     exclude_patterns = exclude if exclude is not None else app_config.exclude
     rules = _build_configured_rules_or_raise(app_config)
+    active_packs = _resolve_active_packs_or_raise(app_config)
+    plugin_rules, plugin_runs = _schedule_plugins_or_raise(app_config, active_packs=active_packs)
 
     files = parse_unified_diff(diff_text)
     filtered_files = _filter_files(files, includes=include_patterns, excludes=exclude_patterns)
-    result = score_files(filtered_files, rules=rules)
+    result = score_files(filtered_files, rules=[*rules, *plugin_rules])
     return _ScoreContext(
         result=result,
         files=filtered_files,
         diff_text=diff_text,
         input_source=input_source,
+        plugin_runs=plugin_runs,
     )
+
+
+def _resolve_active_packs_or_raise(app_config: AppConfig) -> set[str]:
+    try:
+        return resolve_active_packs(
+            objective_name=app_config.objective.name,
+            enabled_packs=app_config.objective.enable_packs,
+            disabled_packs=app_config.objective.disable_packs,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="config.objective") from exc
+
+
+def _schedule_plugins_or_raise(
+    app_config: AppConfig, *, active_packs: set[str]
+) -> tuple[list[Rule], list[PluginRun]]:
+    try:
+        return schedule_plugin_rules(
+            include_builtin=app_config.plugins.include_builtin,
+            active_packs=active_packs,
+            mode=app_config.objective.mode,
+            budget_seconds=app_config.objective.budget_seconds,
+            enabled_plugin_ids=app_config.plugins.enable,
+            disabled_plugin_ids=app_config.plugins.disable,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="config.plugins/config.objective") from exc

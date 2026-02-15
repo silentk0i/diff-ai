@@ -8,6 +8,11 @@ name = "feature_oneshot"
 mode = "standard"
 budget_seconds = 15
 
+[plugins]
+include_builtin = true
+enable = []
+disable = []
+
 [objective.packs]
 enable = []
 disable = []

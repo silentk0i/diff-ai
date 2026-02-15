@@ -128,6 +128,22 @@ class ObjectiveConfig:
 
 
 @dataclass(slots=True)
+class PluginsConfig:
+    """Plugin execution and selection controls."""
+
+    include_builtin: bool = True
+    enable: list[str] = field(default_factory=list)
+    disable: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "include_builtin": self.include_builtin,
+            "enable": list(self.enable),
+            "disable": list(self.disable),
+        }
+
+
+@dataclass(slots=True)
 class AppConfig:
     """Runtime configuration values resolved from project files."""
 
@@ -140,6 +156,7 @@ class AppConfig:
     llm: LlmConfig = field(default_factory=LlmConfig)
     profile: ProfileConfig = field(default_factory=ProfileConfig)
     objective: ObjectiveConfig = field(default_factory=ObjectiveConfig)
+    plugins: PluginsConfig = field(default_factory=PluginsConfig)
     source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -153,6 +170,7 @@ class AppConfig:
                 "disable": list(self.rule_disable),
             },
             "objective": self.objective.to_dict(),
+            "plugins": self.plugins.to_dict(),
             "llm": self.llm.to_dict(),
             "profile": self.profile.to_dict(),
             "source": self.source,
@@ -207,6 +225,11 @@ def default_config_template() -> str:
             "# test_adequacy = 1.35",
             "# integration = 1.15",
             "# security = 0.60",
+            "",
+            "[plugins]",
+            "include_builtin = true",
+            "enable = []",
+            "disable = []",
             "",
             "[rules]",
             '# enable = ["magnitude", "critical_paths", "profile_signals"]',
@@ -284,6 +307,7 @@ def _find_pyproject_tool_section(loaded: dict[str, Any]) -> dict[str, Any] | Non
 def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
     rules_mapping = _as_table(mapping.get("rules"), "rules")
     objective_mapping = _as_table(mapping.get("objective"), "objective")
+    plugins_mapping = _as_table(mapping.get("plugins"), "plugins")
     llm_mapping = _as_table(mapping.get("llm"), "llm")
     profile_mapping = _as_table(mapping.get("profile"), "profile")
 
@@ -308,6 +332,7 @@ def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
         rule_enable=_as_str_list_or_none(rules_mapping.get("enable")),
         rule_disable=_as_str_list(rules_mapping.get("disable")),
         objective=_parse_objective_config(objective_mapping),
+        plugins=_parse_plugins_config(plugins_mapping),
         llm=_parse_llm_config(llm_mapping),
         profile=_parse_profile_config(profile_mapping),
         source=source,
@@ -335,6 +360,14 @@ def _parse_objective_config(value: dict[str, Any]) -> ObjectiveConfig:
         enable_packs=_as_str_list(packs.get("enable")),
         disable_packs=_as_str_list(packs.get("disable")),
         category_weights=_as_float_mapping(weights, "objective.weights"),
+    )
+
+
+def _parse_plugins_config(value: dict[str, Any]) -> PluginsConfig:
+    return PluginsConfig(
+        include_builtin=_as_bool(value.get("include_builtin", True), "plugins.include_builtin"),
+        enable=_as_str_list(value.get("enable")),
+        disable=_as_str_list(value.get("disable")),
     )
 
 

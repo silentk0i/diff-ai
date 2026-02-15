@@ -51,6 +51,7 @@ Current CLI commands:
 - `diff-ai prompt`
 - `diff-ai bundle`
 - `diff-ai rules`
+- `diff-ai plugins`
 - `diff-ai config`
 - `diff-ai config-init`
 - `diff-ai config-validate`
@@ -211,6 +212,11 @@ name = "feature_oneshot" # or "security_strict"
 mode = "standard"        # fast|standard|deep
 budget_seconds = 15
 
+[plugins]
+include_builtin = true
+enable = []              # optional explicit plugin IDs
+disable = []
+
 [objective.packs]
 enable = []              # example: ["security"]
 disable = []
@@ -264,6 +270,14 @@ Objective notes:
 - `feature_oneshot` (default): logic/integration/test coverage first; security pack is opt-in.
 - `security_strict`: enables security-focused rules and higher security weighting.
 - Explicit `[rules].enable` still overrides pack defaults when you need a custom set.
+- Plugins are scheduled by `objective.mode` and `objective.budget_seconds`.
+  - `fast`: run only low-cost plugins.
+  - `standard`: balanced plugin coverage (default).
+  - `deep`: allows higher-cost plugins.
+- Built-in plugins:
+  - `deferred_work_markers` (logic, ~1s)
+  - `cross_layer_touchpoints` (integration, ~4s)
+  - `network_exposure_probe` (security, ~3s)
 
 Inspect resolved config:
 
@@ -282,6 +296,12 @@ List active/available rules:
 
 ```bash
 diff-ai rules --repo . --format human
+```
+
+List plugins and preview scheduler decisions:
+
+```bash
+diff-ai plugins --repo . --format json --dry-run
 ```
 
 See also:

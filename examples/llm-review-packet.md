@@ -33,6 +33,7 @@ Then update config with repo-specific critical paths/patterns before scoring:
 - unsafe patterns (`[profile.patterns].unsafe_added`)
 - test expectations (`[profile.tests]`)
 - objective and packs (`[objective]`, `[objective.packs]`, `[objective.weights]`)
+- plugin schedule controls (`[plugins]`, objective `mode`/`budget_seconds`)
 
 ## 4) Required Execution Loop
 

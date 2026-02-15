@@ -149,9 +149,11 @@ def build_rules(
 
     candidate_ids = _candidate_rule_ids(
         specs=specs,
-        objective_name=objective_name,
-        enabled_packs=enabled_packs,
-        disabled_packs=disabled_packs,
+        active_packs=resolve_active_packs(
+            objective_name=objective_name,
+            enabled_packs=enabled_packs,
+            disabled_packs=disabled_packs,
+        ),
     )
     candidate_set = set(candidate_ids)
     if enabled_rule_ids is None:
@@ -197,9 +199,11 @@ def list_rule_info(
     default_enabled = set(
         _candidate_rule_ids(
             specs=specs,
-            objective_name=objective_name,
-            enabled_packs=enabled_packs,
-            disabled_packs=disabled_packs,
+            active_packs=resolve_active_packs(
+                objective_name=objective_name,
+                enabled_packs=enabled_packs,
+                disabled_packs=disabled_packs,
+            ),
         )
     )
     info: list[RuleInfo] = []
@@ -220,18 +224,8 @@ def list_rule_info(
 def _candidate_rule_ids(
     *,
     specs: list[_RuleSpec],
-    objective_name: str,
-    enabled_packs: list[str] | None,
-    disabled_packs: list[str] | None,
+    active_packs: set[str],
 ) -> list[str]:
-    preset = _resolve_objective_preset(objective_name)
-    known_packs = _known_packs(specs)
-    _validate_packs(enabled_packs or [], known_packs)
-    _validate_packs(disabled_packs or [], known_packs)
-
-    active_packs = set(preset.default_packs)
-    active_packs.update(enabled_packs or [])
-    active_packs.difference_update(disabled_packs or [])
     return [
         spec.rule_id
         for spec in specs
@@ -256,6 +250,24 @@ def _build_category_weights(
             raise ValueError(f"Unknown objective weight categories: {joined}")
         weights.update(overrides)
     return weights
+
+
+def resolve_active_packs(
+    *,
+    objective_name: str,
+    enabled_packs: list[str] | None,
+    disabled_packs: list[str] | None,
+) -> set[str]:
+    """Resolve active packs from objective preset plus explicit pack overrides."""
+    preset = _resolve_objective_preset(objective_name)
+    known_packs = _known_packs(_ordered_rule_specs(ProfileConfig()))
+    _validate_packs(enabled_packs or [], known_packs)
+    _validate_packs(disabled_packs or [], known_packs)
+
+    active_packs = set(preset.default_packs)
+    active_packs.update(enabled_packs or [])
+    active_packs.difference_update(disabled_packs or [])
+    return active_packs
 
 
 def _resolve_objective_preset(name: str) -> _ObjectivePreset:

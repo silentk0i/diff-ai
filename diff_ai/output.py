@@ -9,6 +9,7 @@ from typing import Any
 import click
 
 from diff_ai import __version__
+from diff_ai.plugins import PluginRun
 from diff_ai.rules.base import Finding
 from diff_ai.scoring import FileScore, ScoreResult
 
@@ -49,9 +50,16 @@ def render_json(
     input_source: str,
     base: str | None,
     head: str | None,
+    plugin_runs: list[PluginRun] | None = None,
 ) -> str:
     """Render stable JSON output for CI and automation."""
-    payload = build_json_payload(result, input_source=input_source, base=base, head=head)
+    payload = build_json_payload(
+        result,
+        input_source=input_source,
+        base=base,
+        head=head,
+        plugin_runs=plugin_runs,
+    )
     return json.dumps(payload, sort_keys=True)
 
 
@@ -88,22 +96,27 @@ def build_json_payload(
     input_source: str,
     base: str | None,
     head: str | None,
+    plugin_runs: list[PluginRun] | None = None,
 ) -> dict[str, Any]:
     """Build stable JSON payload for CI and automation."""
+    meta: dict[str, Any] = {
+        "generated_at": datetime.now(tz=UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "base": base,
+        "head": head,
+        "input_source": input_source,
+        "version": __version__,
+    }
+    if plugin_runs is not None:
+        meta["plugins"] = [run.to_dict() for run in plugin_runs]
+
     return {
         "overall_score": result.overall_score,
         "files": [_serialize_file(item) for item in result.files],
         "findings": [_serialize_finding(item) for item in result.findings],
-        "meta": {
-            "generated_at": datetime.now(tz=UTC)
-            .replace(microsecond=0)
-            .isoformat()
-            .replace("+00:00", "Z"),
-            "base": base,
-            "head": head,
-            "input_source": input_source,
-            "version": __version__,
-        },
+        "meta": meta,
     }
 
 
