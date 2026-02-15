@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diff AI Feature Oneshot"
+  short_description: "Use diff-ai to harden one-shot feature delivery"
+  default_prompt: "Use $diff-ai-feature-oneshot to run diff-ai, reduce logical risk, and produce a focused patch plan."

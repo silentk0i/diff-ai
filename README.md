@@ -17,6 +17,73 @@ It exists to make review risk visible early, before merge:
 - Run repeatable local/CI checks without external dependencies.
 - Hand off a structured review packet to any LLM workflow.
 
+## AI Skill Integration (Recommended)
+
+This repo includes reusable integrations for both Codex and Claude Code.
+
+### Release Artifacts
+
+Release files in this repo:
+- `releases/diff-ai-feature-oneshot-codex-v0.1.0.zip`
+- `releases/diff-ai-feature-oneshot-claude-v0.1.0.zip`
+- `releases/SHA256SUMS.txt`
+
+Build/update release artifacts:
+
+```bash
+./scripts/build_releases.sh
+```
+
+Build with explicit version:
+
+```bash
+./scripts/build_releases.sh 0.1.0
+```
+
+Verify checksums:
+
+```bash
+cd releases
+sha256sum -c SHA256SUMS.txt
+```
+
+### Codex Release
+
+Install from release zip:
+
+```bash
+mkdir -p "$CODEX_HOME/skills"
+unzip -o releases/diff-ai-feature-oneshot-codex-v0.1.0.zip -d .
+cp -R skills/diff-ai-feature-oneshot "$CODEX_HOME/skills/diff-ai-feature-oneshot"
+```
+
+Use in Codex:
+
+```text
+$diff-ai-feature-oneshot
+```
+
+### Claude Release
+
+Install into a Claude Code project:
+
+```bash
+unzip -o /path/to/diff-ai/releases/diff-ai-feature-oneshot-claude-v0.1.0.zip -d .
+```
+
+If you prefer manual copy:
+
+```bash
+mkdir -p .claude/commands
+cp ./path/to/diff-ai/.claude/commands/diff-ai-feature-oneshot.md .claude/commands/
+```
+
+Use in Claude Code:
+
+```text
+/diff-ai-feature-oneshot origin/main HEAD 30
+```
+
 ## Install
 
 ### With `pipx` (recommended for CLI usage)
@@ -306,18 +373,8 @@ diff-ai plugins --repo . --format json --dry-run
 
 See also:
 - `examples/config.toml`
-- `examples/llm-review-packet.md`
-- `examples/llm-review-packet-security.md`
-
-## Prompting Strategy
-
-`examples/llm-review-packet.md` uses current tool-agent prompt design patterns:
-- explicit objective and hard constraints
-- mandatory tool-use protocol (no simulated output)
-- config-first setup for repo-specific risk signals
-- iterative execute-verify loop with stop criteria
-- strict response contract for reproducibility
-- bounded context and secret-redaction requirements
+- `skills/diff-ai-feature-oneshot/SKILL.md`
+- `.claude/commands/diff-ai-feature-oneshot.md`
 
 ## Security Notes
 
