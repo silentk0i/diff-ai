@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from diff_ai.diff_parser import parse_unified_diff
+from diff_ai.rules import build_rules
 from diff_ai.scoring import score_diff_text
 from tests.helpers_git import build_numbered_lines, commit_all, git, init_repo, write_file
 
@@ -36,7 +37,7 @@ def test_golden_critical_paths_from_real_git_diff(tmp_path) -> None:
     write_file(repo, "terraform/main.tf", 'resource "null_resource" "y" {}\n')
     write_file(repo, "db/migrations/001_init.sql", "create table t(id bigint);\n")
     diff_text = git(repo, "diff", "--no-color")
-    result = score_diff_text(diff_text)
+    result = score_diff_text(diff_text, rules=build_rules(objective_name="security_strict"))
 
     critical_scopes = {
         finding.scope for finding in result.findings if finding.rule_id == "critical_paths"
@@ -60,8 +61,8 @@ def test_golden_test_signals_when_src_changes_without_tests(tmp_path) -> None:
     result = score_diff_text(diff_text)
 
     findings = [item for item in result.findings if item.rule_id == "test_signals"]
-    assert any(item.points == 18 and item.scope == "overall" for item in findings)
-    assert 18 <= result.overall_score <= 40
+    assert any(item.points == 24 and item.scope == "overall" for item in findings)
+    assert 24 <= result.overall_score <= 45
 
 
 def test_test_signals_trigger_when_tests_deleted(tmp_path) -> None:
@@ -76,7 +77,7 @@ def test_test_signals_trigger_when_tests_deleted(tmp_path) -> None:
 
     findings = [item for item in result.findings if item.rule_id == "test_signals"]
     assert any(
-        item.scope == "file:tests/test_service.py" and item.points == 12
+        item.scope == "file:tests/test_service.py" and item.points == 16
         for item in findings
     )
 

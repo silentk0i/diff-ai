@@ -9,7 +9,7 @@ from diff_ai.config import (
     ProfileTestsConfig,
 )
 from diff_ai.diff_parser import parse_unified_diff
-from diff_ai.rules import default_rules
+from diff_ai.rules import build_rules, default_rules
 from diff_ai.rules.api_surface import ApiSurfaceRule
 from diff_ai.rules.config_changes import ConfigChangesRule
 from diff_ai.rules.dangerous_patterns import DangerousPatternsRule
@@ -20,10 +20,20 @@ from diff_ai.rules.error_handling import ErrorHandlingRule
 from diff_ai.rules.profile_signals import ProfileSignalsRule
 
 
-def test_default_rules_has_at_least_ten_rules() -> None:
+def test_default_rules_use_feature_oneshot_pack_defaults() -> None:
     rules = default_rules()
-    assert len(rules) >= 10
-    assert len({rule.rule_id for rule in rules}) == len(rules)
+    rule_ids = {rule.rule_id for rule in rules}
+    assert len(rules) >= 8
+    assert len(rule_ids) == len(rules)
+    assert "critical_paths" not in rule_ids
+    assert "dangerous_patterns" not in rule_ids
+
+
+def test_security_strict_objective_includes_security_pack_rules() -> None:
+    rules = build_rules(objective_name="security_strict")
+    rule_ids = {rule.rule_id for rule in rules}
+    assert "critical_paths" in rule_ids
+    assert "dangerous_patterns" in rule_ids
 
 
 def test_dependency_changes_rule_flags_manifests_and_lockfiles() -> None:

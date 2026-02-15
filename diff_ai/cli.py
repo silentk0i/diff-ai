@@ -404,7 +404,11 @@ def rules_command(
     app_config = _load_config_or_raise(repo, config_file)
     active_rules = _build_configured_rules_or_raise(app_config)
     active_ids = {rule.rule_id for rule in active_rules}
-    rule_info = list_rule_info()
+    rule_info = list_rule_info(
+        objective_name=app_config.objective.name,
+        enabled_packs=app_config.objective.enable_packs,
+        disabled_packs=app_config.objective.disable_packs,
+    )
 
     if output_format == "json":
         payload = {
@@ -413,6 +417,8 @@ def rules_command(
                     "rule_id": item.rule_id,
                     "name": item.name,
                     "description": item.description,
+                    "category": item.category,
+                    "packs": list(item.packs),
                     "default_enabled": item.default_enabled,
                     "enabled": item.rule_id in active_ids,
                 }
@@ -426,7 +432,10 @@ def rules_command(
     lines = ["Available rules:"]
     for item in rule_info:
         status = "enabled" if item.rule_id in active_ids else "disabled"
-        lines.append(f"- {item.rule_id} [{status}] - {item.description}")
+        lines.append(
+            f"- {item.rule_id} [{status}] category={item.category} packs={list(item.packs)} "
+            f"- {item.description}"
+        )
     typer.echo("\n".join(lines))
 
 
@@ -462,6 +471,12 @@ def config_command(
         f"- exclude: {payload['exclude']}",
         f"- rules.enable: {payload['rules']['enable']}",
         f"- rules.disable: {payload['rules']['disable']}",
+        f"- objective.name: {payload['objective']['name']}",
+        f"- objective.mode: {payload['objective']['mode']}",
+        f"- objective.budget_seconds: {payload['objective']['budget_seconds']}",
+        f"- objective.packs.enable: {payload['objective']['packs']['enable']}",
+        f"- objective.packs.disable: {payload['objective']['packs']['disable']}",
+        f"- objective.weights: {payload['objective']['weights']}",
         f"- active_rule_ids: {payload['active_rule_ids']}",
     ]
     typer.echo("\n".join(lines))
@@ -575,9 +590,13 @@ def _build_configured_rules_or_raise(app_config: AppConfig) -> list[Rule]:
             enabled_rule_ids=app_config.rule_enable,
             disabled_rule_ids=app_config.rule_disable,
             profile=app_config.profile,
+            objective_name=app_config.objective.name,
+            enabled_packs=app_config.objective.enable_packs,
+            disabled_packs=app_config.objective.disable_packs,
+            category_weights=app_config.objective.category_weights,
         )
     except ValueError as exc:
-        raise typer.BadParameter(str(exc), param_hint="config.rules") from exc
+        raise typer.BadParameter(str(exc), param_hint="config.rules/config.objective") from exc
 
 
 def _choice_or_default(

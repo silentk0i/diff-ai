@@ -47,6 +47,8 @@ def test_load_app_config_prefers_dot_file_over_pyproject(tmp_path: Path) -> None
     assert config.include == ["src/**"]
     assert config.rule_enable == ["magnitude"]
     assert config.rule_disable == ["docs_only"]
+    assert config.objective.name == "feature_oneshot"
+    assert config.objective.mode == "standard"
     assert config.source == str(repo / ".diff-ai.toml")
 
 
@@ -97,6 +99,40 @@ def test_rules_command_json_lists_enabled_state_from_config(tmp_path: Path) -> N
     assert payload["meta"]["config_source"] == str(repo / ".diff-ai.toml")
 
 
+def test_rules_command_defaults_to_feature_oneshot_packs(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    result = runner.invoke(app, ["rules", "--repo", str(repo), "--format", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    rules_by_id = {item["rule_id"]: item for item in payload["rules"]}
+    assert rules_by_id["critical_paths"]["enabled"] is False
+    assert rules_by_id["dangerous_patterns"]["enabled"] is False
+    assert rules_by_id["test_signals"]["enabled"] is True
+
+
+def test_rules_command_objective_can_enable_security_pack(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".diff-ai.toml").write_text(
+        "\n".join(
+            [
+                "[objective]",
+                'name = "security_strict"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["rules", "--repo", str(repo), "--format", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    rules_by_id = {item["rule_id"]: item for item in payload["rules"]}
+    assert rules_by_id["critical_paths"]["enabled"] is True
+    assert rules_by_id["dangerous_patterns"]["enabled"] is True
+
+
 def test_config_command_json_shows_resolved_values(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -124,6 +160,9 @@ def test_config_command_json_shows_resolved_values(tmp_path: Path) -> None:
     assert payload["exclude"] == ["docs/**"]
     assert payload["rules"]["enable"] == ["magnitude", "critical_paths"]
     assert payload["active_rule_ids"] == ["magnitude", "critical_paths"]
+    assert payload["objective"]["name"] == "feature_oneshot"
+    assert payload["objective"]["mode"] == "standard"
+    assert payload["objective"]["budget_seconds"] == 15
     assert payload["source"] == str(repo / ".diff-ai.toml")
 
 
@@ -279,6 +318,45 @@ def test_profile_signals_from_config_influence_score(tmp_path: Path) -> None:
     assert {item["rule_id"] for item in payload["findings"]} == {"profile_signals"}
 
 
+def test_objective_category_weight_scales_points(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".diff-ai.toml").write_text(
+        "\n".join(
+            [
+                "[objective.weights]",
+                "test_adequacy = 2.0",
+                "",
+                "[rules]",
+                'enable = ["test_signals"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    diff_text = "\n".join(
+        [
+            "diff --git a/src/feature.py b/src/feature.py",
+            "index 1111111..2222222 100644",
+            "--- a/src/feature.py",
+            "+++ b/src/feature.py",
+            "@@ -1 +1 @@",
+            "-x = 1",
+            "+x = 2",
+        ]
+    )
+
+    result = runner.invoke(
+        app,
+        ["score", "--repo", str(repo), "--stdin", "--format", "json"],
+        input=diff_text,
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    findings = [item for item in payload["findings"] if item["rule_id"] == "test_signals"]
+    assert findings
+    assert findings[0]["points"] == 36
+
+
 def test_config_init_and_validate_commands(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -291,6 +369,9 @@ def test_config_init_and_validate_commands(tmp_path: Path) -> None:
     assert init_result.exit_code == 0
     assert config_path.exists()
     content = config_path.read_text(encoding="utf-8")
+    assert "[objective]" in content
+    assert "[objective.packs]" in content
+    assert "[objective.weights]" in content
     assert "[profile.paths]" in content
     assert "[profile.patterns]" in content
 

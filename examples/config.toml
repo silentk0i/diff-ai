@@ -3,6 +3,23 @@ fail_above = 45
 include = ["src/**", "auth/**", "db/**"]
 exclude = ["docs/**", "examples/**"]
 
+[objective]
+name = "feature_oneshot"
+mode = "standard"
+budget_seconds = 15
+
+[objective.packs]
+enable = []
+disable = []
+
+[objective.weights]
+logic = 1.30
+integration = 1.15
+test_adequacy = 1.35
+security = 0.60
+quality = 1.00
+profile = 1.00
+
 [rules]
 enable = [
   "magnitude",

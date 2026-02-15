@@ -82,8 +82,8 @@ def test_score_diff_text_aggregates_default_rules() -> None:
 
     rule_ids = {finding.rule_id for finding in result.findings}
     assert "magnitude" in rule_ids
-    assert "critical_paths" in rule_ids
     assert "test_signals" in rule_ids
+    assert "critical_paths" not in rule_ids
 
 
 def test_score_clamps_to_100() -> None:

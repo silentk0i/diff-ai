@@ -7,6 +7,7 @@ It exists to make review risk visible early, before merge:
 - Explain why risk is high (findings, evidence, suggestions).
 - Support machine-readable JSON for CI gates.
 - Generate LLM-ready handoff docs without making any API calls.
+- Optimize one-shot feature delivery with a logic-first default objective.
 
 ## Why Use It
 
@@ -205,8 +206,25 @@ fail_above = 40
 include = ["src/**"]
 exclude = ["docs/**"]
 
+[objective]
+name = "feature_oneshot" # or "security_strict"
+mode = "standard"        # fast|standard|deep
+budget_seconds = 15
+
+[objective.packs]
+enable = []              # example: ["security"]
+disable = []
+
+[objective.weights]
+logic = 1.30
+integration = 1.15
+test_adequacy = 1.35
+security = 0.60
+quality = 1.00
+profile = 1.00
+
 [rules]
-enable = ["magnitude", "critical_paths", "test_signals", "profile_signals"]
+enable = ["magnitude", "critical_paths", "test_signals", "profile_signals"] # optional override
 disable = ["docs_only"]
 
 [llm]
@@ -241,6 +259,11 @@ unsafe_added = [
 required_for = ["src/payments/**", "infra/**"]
 test_globs = ["tests/**", "**/*_test.py"]
 ```
+
+Objective notes:
+- `feature_oneshot` (default): logic/integration/test coverage first; security pack is opt-in.
+- `security_strict`: enables security-focused rules and higher security weighting.
+- Explicit `[rules].enable` still overrides pack defaults when you need a custom set.
 
 Inspect resolved config:
 

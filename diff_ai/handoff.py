@@ -120,9 +120,9 @@ def build_prompt_markdown(
             ),
             "",
             "## Checklist",
-            "- Run `pytest` and include relevant failing/passing test evidence.",
-            "- Run `ruff check .` and fix any lint violations.",
-            "- Run `mypy` and resolve type issues.",
+            "- Run repository test command(s) and include failing/passing evidence.",
+            "- Run the repo's lint/static analysis commands and fix violations.",
+            "- Validate changed contracts/interfaces and failure-path behavior.",
             "- Verify changed files with focused manual checks for risky paths.",
             "- Summarize why final risk is below target and what remains risky.",
         ]

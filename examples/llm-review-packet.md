@@ -4,7 +4,7 @@ Paste this into an AI assistant that has terminal/tool access to the repo.
 
 ## 1) Mission
 
-Reduce diff risk to below `<TARGET_SCORE>` while keeping changes minimal, preserving behavior, and adding/adjusting tests.
+Reduce diff risk to below `<TARGET_SCORE>` while keeping changes minimal, preserving behavior, and adding/adjusting tests. Prioritize logical feature completeness over stylistic or cosmetic edits.
 
 - target score: `<TARGET_SCORE>` (default `30`)
 - base revision: `<BASE_REV>` (example: `origin/main`)
@@ -32,6 +32,7 @@ Then update config with repo-specific critical paths/patterns before scoring:
 - important paths (`[profile.paths].critical/sensitive`)
 - unsafe patterns (`[profile.patterns].unsafe_added`)
 - test expectations (`[profile.tests]`)
+- objective and packs (`[objective]`, `[objective.packs]`, `[objective.weights]`)
 
 ## 4) Required Execution Loop
 
@@ -94,9 +95,13 @@ When multiple fixes exist, choose the one with:
 - Minimal proposed edits (file-by-file)
 - Why each edit lowers specific findings
 
+### Logical Gaps
+- Missing wiring/integration points that could break one-shot feature delivery
+- Contract, migration, and failure-path checks added to close those gaps
+
 ### Tests
 - Tests added/updated
-- Commands run (`pytest`, targeted tests, etc.)
+- Commands run (repo-specific test/lint/typecheck commands)
 
 ### Re-Score
 - New score and delta from baseline

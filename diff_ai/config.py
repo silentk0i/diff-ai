@@ -104,6 +104,30 @@ class ProfileConfig:
 
 
 @dataclass(slots=True)
+class ObjectiveConfig:
+    """Objective and time-budget controls for rule selection/scoring."""
+
+    name: str = "feature_oneshot"
+    mode: str = "standard"
+    budget_seconds: int = 15
+    enable_packs: list[str] = field(default_factory=list)
+    disable_packs: list[str] = field(default_factory=list)
+    category_weights: dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "mode": self.mode,
+            "budget_seconds": self.budget_seconds,
+            "packs": {
+                "enable": list(self.enable_packs),
+                "disable": list(self.disable_packs),
+            },
+            "weights": dict(self.category_weights),
+        }
+
+
+@dataclass(slots=True)
 class AppConfig:
     """Runtime configuration values resolved from project files."""
 
@@ -115,6 +139,7 @@ class AppConfig:
     rule_disable: list[str] = field(default_factory=list)
     llm: LlmConfig = field(default_factory=LlmConfig)
     profile: ProfileConfig = field(default_factory=ProfileConfig)
+    objective: ObjectiveConfig = field(default_factory=ObjectiveConfig)
     source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -127,6 +152,7 @@ class AppConfig:
                 "enable": list(self.rule_enable) if self.rule_enable is not None else None,
                 "disable": list(self.rule_disable),
             },
+            "objective": self.objective.to_dict(),
             "llm": self.llm.to_dict(),
             "profile": self.profile.to_dict(),
             "source": self.source,
@@ -166,6 +192,21 @@ def default_config_template() -> str:
             "fail_above = 40",
             'include = ["src/**"]',
             'exclude = ["docs/**"]',
+            "",
+            "[objective]",
+            'name = "feature_oneshot"',
+            'mode = "standard"',
+            "budget_seconds = 15",
+            "",
+            "[objective.packs]",
+            '# enable = ["security"]',
+            "disable = []",
+            "",
+            "[objective.weights]",
+            "# logic = 1.30",
+            "# test_adequacy = 1.35",
+            "# integration = 1.15",
+            "# security = 0.60",
             "",
             "[rules]",
             '# enable = ["magnitude", "critical_paths", "profile_signals"]',
@@ -242,6 +283,7 @@ def _find_pyproject_tool_section(loaded: dict[str, Any]) -> dict[str, Any] | Non
 
 def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
     rules_mapping = _as_table(mapping.get("rules"), "rules")
+    objective_mapping = _as_table(mapping.get("objective"), "objective")
     llm_mapping = _as_table(mapping.get("llm"), "llm")
     profile_mapping = _as_table(mapping.get("profile"), "profile")
 
@@ -265,9 +307,34 @@ def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
         exclude=_as_str_list(mapping.get("exclude")),
         rule_enable=_as_str_list_or_none(rules_mapping.get("enable")),
         rule_disable=_as_str_list(rules_mapping.get("disable")),
+        objective=_parse_objective_config(objective_mapping),
         llm=_parse_llm_config(llm_mapping),
         profile=_parse_profile_config(profile_mapping),
         source=source,
+    )
+
+
+def _parse_objective_config(value: dict[str, Any]) -> ObjectiveConfig:
+    packs = _as_table(value.get("packs"), "objective.packs")
+    weights = _as_table(value.get("weights"), "objective.weights")
+    budget = _as_int(value.get("budget_seconds", 15), "objective.budget_seconds")
+    if budget <= 0:
+        raise ValueError("objective.budget_seconds must be > 0")
+    return ObjectiveConfig(
+        name=_as_choice(
+            value.get("name", "feature_oneshot"),
+            {"feature_oneshot", "security_strict"},
+            "objective.name",
+        ),
+        mode=_as_choice(
+            value.get("mode", "standard"),
+            {"fast", "standard", "deep"},
+            "objective.mode",
+        ),
+        budget_seconds=budget,
+        enable_packs=_as_str_list(packs.get("enable")),
+        disable_packs=_as_str_list(packs.get("disable")),
+        category_weights=_as_float_mapping(weights, "objective.weights"),
     )
 
 
@@ -421,3 +488,23 @@ def _as_bool(raw: Any, field_name: str) -> bool:
     if not isinstance(raw, bool):
         raise ValueError(f"{field_name} must be a boolean")
     return raw
+
+
+def _as_float_mapping(value: Any, field_name: str) -> dict[str, float]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{field_name} must be a table/object")
+
+    parsed: dict[str, float] = {}
+    for key, raw in value.items():
+        if not isinstance(key, str):
+            raise ValueError(f"{field_name} keys must be strings")
+        parsed[key] = _as_float(raw, f"{field_name}.{key}")
+    return parsed
+
+
+def _as_float(raw: Any, field_name: str) -> float:
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise ValueError(f"{field_name} must be a number")
+    return float(raw)
