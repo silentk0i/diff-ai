@@ -5,12 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from diff_ai.cli import app
 from diff_ai.config import load_app_config
-
-runner = CliRunner()
+from tests.helpers_cli import invoke_cli
 
 
 def test_load_app_config_prefers_dot_file_over_pyproject(tmp_path: Path) -> None:
@@ -112,7 +108,7 @@ def test_rules_command_json_lists_enabled_state_from_config(tmp_path: Path) -> N
         encoding="utf-8",
     )
 
-    result = runner.invoke(app, ["rules", "--repo", str(repo), "--format", "json"])
+    result = invoke_cli(["rules", "--repo", str(repo), "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     rules_by_id = {item["rule_id"]: item for item in payload["rules"]}
@@ -127,7 +123,7 @@ def test_rules_command_defaults_to_feature_oneshot_packs(tmp_path: Path) -> None
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    result = runner.invoke(app, ["rules", "--repo", str(repo), "--format", "json"])
+    result = invoke_cli(["rules", "--repo", str(repo), "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     rules_by_id = {item["rule_id"]: item for item in payload["rules"]}
@@ -149,7 +145,7 @@ def test_rules_command_objective_can_enable_security_pack(tmp_path: Path) -> Non
         encoding="utf-8",
     )
 
-    result = runner.invoke(app, ["rules", "--repo", str(repo), "--format", "json"])
+    result = invoke_cli(["rules", "--repo", str(repo), "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     rules_by_id = {item["rule_id"]: item for item in payload["rules"]}
@@ -175,7 +171,7 @@ def test_config_command_json_shows_resolved_values(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = runner.invoke(app, ["config", "--repo", str(repo), "--format", "json"])
+    result = invoke_cli(["config", "--repo", str(repo), "--format", "json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["format"] == "json"
@@ -220,7 +216,7 @@ def test_score_uses_config_defaults_for_format_fail_and_rule_selection(tmp_path:
         ]
     )
 
-    result = runner.invoke(app, ["score", "--repo", str(repo), "--stdin"], input=diff_text)
+    result = invoke_cli(["score", "--repo", str(repo), "--stdin"], input_text=diff_text)
     assert result.exit_code == 1
     payload = json.loads(result.stdout)
     assert payload["overall_score"] >= 10
@@ -261,10 +257,9 @@ def test_prompt_uses_llm_defaults_from_config(tmp_path: Path) -> None:
         ]
     )
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["prompt", "--repo", str(repo), "--stdin", "--format", "json"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -327,8 +322,7 @@ def test_profile_signals_from_config_influence_score(tmp_path: Path) -> None:
             "+x = 2",
         ]
     )
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         [
             "score",
             "--repo",
@@ -337,7 +331,7 @@ def test_profile_signals_from_config_influence_score(tmp_path: Path) -> None:
             str(config_path),
             "--stdin",
         ],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -372,10 +366,9 @@ def test_objective_category_weight_scales_points(tmp_path: Path) -> None:
         ]
     )
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["score", "--repo", str(repo), "--stdin", "--format", "json"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -389,10 +382,7 @@ def test_config_init_and_validate_commands(tmp_path: Path) -> None:
     repo.mkdir()
     config_path = repo / ".diff-ai.toml"
 
-    init_result = runner.invoke(
-        app,
-        ["config-init", "--out", str(config_path)],
-    )
+    init_result = invoke_cli(["config-init", "--out", str(config_path)])
     assert init_result.exit_code == 0
     assert config_path.exists()
     content = config_path.read_text(encoding="utf-8")
@@ -403,9 +393,8 @@ def test_config_init_and_validate_commands(tmp_path: Path) -> None:
     assert "[profile.paths]" in content
     assert "[profile.patterns]" in content
 
-    validate_result = runner.invoke(
-        app,
-        ["config-validate", "--repo", str(repo), "--config", str(config_path), "--format", "json"],
+    validate_result = invoke_cli(
+        ["config-validate", "--repo", str(repo), "--config", str(config_path), "--format", "json"]
     )
     assert validate_result.exit_code == 0
     payload = json.loads(validate_result.stdout)

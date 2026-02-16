@@ -5,12 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from diff_ai.cli import app
 from diff_ai.plugins import schedule_plugin_rules
-
-runner = CliRunner()
+from tests.helpers_cli import invoke_cli
 
 
 def test_schedule_plugins_respects_mode_and_pack_filters() -> None:
@@ -77,10 +73,9 @@ def test_cli_score_json_includes_plugin_execution_metadata(tmp_path: Path) -> No
         ]
     )
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["score", "--repo", str(repo), "--stdin", "--format", "json"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
@@ -112,7 +107,7 @@ def test_cli_plugins_command_json_shows_dry_run_schedule(tmp_path: Path) -> None
         encoding="utf-8",
     )
 
-    result = runner.invoke(app, ["plugins", "--repo", str(repo), "--format", "json", "--dry-run"])
+    result = invoke_cli(["plugins", "--repo", str(repo), "--format", "json", "--dry-run"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["meta"]["dry_run"] is True
@@ -129,10 +124,7 @@ def test_cli_plugins_command_json_no_dry_run_omits_schedule(tmp_path: Path) -> N
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    result = runner.invoke(
-        app,
-        ["plugins", "--repo", str(repo), "--format", "json", "--no-dry-run"],
-    )
+    result = invoke_cli(["plugins", "--repo", str(repo), "--format", "json", "--no-dry-run"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["meta"]["dry_run"] is False

@@ -4,12 +4,8 @@ from __future__ import annotations
 
 import json
 
-from typer.testing import CliRunner
-
-from diff_ai.cli import app
+from tests.helpers_cli import invoke_cli
 from tests.helpers_git import build_numbered_lines, commit_all, git, init_repo, write_file
-
-runner = CliRunner()
 
 
 def test_cli_score_json_from_stdin_has_schema_keys(tmp_path) -> None:
@@ -19,7 +15,7 @@ def test_cli_score_json_from_stdin_has_schema_keys(tmp_path) -> None:
     write_file(repo, "auth/service.py", "ALLOW=True\n")
     diff_text = git(repo, "diff", "--no-color")
 
-    result = runner.invoke(app, ["score", "--stdin", "--format", "json"], input=diff_text)
+    result = invoke_cli(["score", "--stdin", "--format", "json"], input_text=diff_text)
     assert result.exit_code == 0
 
     payload = json.loads(result.stdout)
@@ -51,16 +47,14 @@ def test_cli_fail_above_sets_exit_code(tmp_path) -> None:
     write_file(repo, "src/core.py", build_numbered_lines("new", 220))
     diff_text = git(repo, "diff", "--no-color")
 
-    fail_result = runner.invoke(
-        app,
+    fail_result = invoke_cli(
         ["score", "--stdin", "--format", "json", "--fail-above", "20"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert fail_result.exit_code == 1
 
-    ok_result = runner.invoke(
-        app,
+    ok_result = invoke_cli(
         ["score", "--stdin", "--format", "json", "--fail-above", "99"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert ok_result.exit_code == 0

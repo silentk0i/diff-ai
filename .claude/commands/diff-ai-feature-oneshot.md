@@ -10,17 +10,23 @@ Parse arguments:
 - `head_ref`: default `HEAD`
 - `target_score`: default `30`
 
+Set runtime command:
+
+```bash
+DIFF_AI_BIN="./.claude/tools/diff-ai-feature-oneshot/scripts/diff-ai"
+```
+
 Execute this workflow:
 
 1. Ensure config exists and validates.
 ```bash
-diff-ai config-init --out .diff-ai.toml
-diff-ai config-validate --repo . --config .diff-ai.toml --format json
+"$DIFF_AI_BIN" config-init --out .diff-ai.toml
+"$DIFF_AI_BIN" config-validate --repo . --config .diff-ai.toml --format json
 ```
 
 2. Preview plugin schedule under current mode/budget.
 ```bash
-diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
+"$DIFF_AI_BIN" plugins --repo . --config .diff-ai.toml --format json --dry-run
 ```
 
 3. Ensure `.diff-ai.toml` profile sections are repo-specific and current:
@@ -31,12 +37,12 @@ diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
 
 4. Baseline score and findings.
 ```bash
-diff-ai score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json
 ```
 
 5. Build prompt artifact for patch planning and write to a file (do not print full markdown/diff in response).
 ```bash
-diff-ai prompt --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" \
+"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" \
   --target-score <target_score> \
   --include-diff top-hunks \
   --max-bytes 120000 \
@@ -46,7 +52,7 @@ diff-ai prompt --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head
 
 6. Propose and apply the smallest safe patch plus tests, then re-score.
 ```bash
-diff-ai score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json --fail-above <target_score>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json --fail-above <target_score>
 ```
 
 Response format:

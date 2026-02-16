@@ -9,6 +9,12 @@ description: Optimize one-shot feature delivery with diff-ai by finding logical,
 
 Use `diff-ai` to run an objective-driven, deterministic review loop focused on logical feature completeness. Favor `feature_oneshot` objective by default and switch to `security_strict` only when requested.
 
+Resolve the bundled runtime command first:
+
+```bash
+DIFF_AI_BIN="${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/diff-ai"
+```
+
 ## Run Workflow
 
 1. Ensure config exists and validates.
@@ -22,16 +28,16 @@ Use `diff-ai` to run an objective-driven, deterministic review loop focused on l
 Run:
 
 ```bash
-diff-ai config-init --out .diff-ai.toml
-diff-ai config-validate --repo . --config .diff-ai.toml --format json
-diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
-diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
+"$DIFF_AI_BIN" config-init --out .diff-ai.toml
+"$DIFF_AI_BIN" config-validate --repo . --config .diff-ai.toml --format json
+"$DIFF_AI_BIN" plugins --repo . --config .diff-ai.toml --format json --dry-run
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
 ```
 
 After edits and tests:
 
 ```bash
-diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
 ```
 
 ## Apply Objective Policy

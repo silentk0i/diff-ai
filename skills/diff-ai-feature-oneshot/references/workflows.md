@@ -5,10 +5,11 @@
 Use this loop for one-shot feature hardening:
 
 ```bash
-diff-ai config-init --out .diff-ai.toml
-diff-ai config-validate --repo . --config .diff-ai.toml --format json
-diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
-diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
+DIFF_AI_BIN="${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/diff-ai"
+"$DIFF_AI_BIN" config-init --out .diff-ai.toml
+"$DIFF_AI_BIN" config-validate --repo . --config .diff-ai.toml --format json
+"$DIFF_AI_BIN" plugins --repo . --config .diff-ai.toml --format json --dry-run
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
 ```
 
 Before patching, update profile sections in `.diff-ai.toml`:
@@ -21,7 +22,7 @@ Before patching, update profile sections in `.diff-ai.toml`:
 After code + tests:
 
 ```bash
-diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
 ```
 
 ## Objective Presets
@@ -53,7 +54,7 @@ Increase/decrease:
 Use when handing off to another AI agent:
 
 ```bash
-diff-ai prompt --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
+"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
   --target-score <TARGET_SCORE> \
   --include-diff top-hunks \
   --max-bytes 120000 \
@@ -62,7 +63,7 @@ diff-ai prompt --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD
 ```
 
 ```bash
-diff-ai bundle --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
+"$DIFF_AI_BIN" bundle --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
   --target-score <TARGET_SCORE> \
   --include-snippets risky-only \
   --max-bytes 120000 \

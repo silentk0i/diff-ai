@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PYTHON_BIN="${DIFF_AI_PYTHON:-python3}"
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "error: python3 is required to run diff-ai skill runtime." >&2
+  exit 1
+fi
+
+if [[ -n "${DIFF_AI_RUNTIME_ROOT:-}" && -d "$DIFF_AI_RUNTIME_ROOT/diff_ai" ]]; then
+  PYTHONPATH_ROOT="$DIFF_AI_RUNTIME_ROOT"
+elif [[ -d "$SKILL_ROOT/runtime/diff_ai" ]]; then
+  PYTHONPATH_ROOT="$SKILL_ROOT/runtime"
+elif [[ -d "$SKILL_ROOT/../../diff_ai" ]]; then
+  # Fallback for working directly from a checkout where runtime is not bundled.
+  PYTHONPATH_ROOT="$(cd "$SKILL_ROOT/../.." && pwd)"
+elif [[ -d "$SKILL_ROOT/../../../diff_ai" ]]; then
+  # Fallback for Claude tool layout nested under .claude/tools/.
+  PYTHONPATH_ROOT="$(cd "$SKILL_ROOT/../../.." && pwd)"
+else
+  echo "error: diff-ai runtime not found next to this skill." >&2
+  echo "hint: install from a release zip or set DIFF_AI_RUNTIME_ROOT." >&2
+  exit 1
+fi
+
+export PYTHONPATH="$PYTHONPATH_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON_BIN" -m diff_ai.standalone "$@"

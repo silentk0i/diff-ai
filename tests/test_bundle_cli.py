@@ -6,12 +6,8 @@ import json
 import zipfile
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from diff_ai.cli import app
+from tests.helpers_cli import invoke_cli
 from tests.helpers_git import commit_all, git, init_repo, write_file
-
-runner = CliRunner()
 
 
 def test_prompt_command_outputs_markdown_sections(tmp_path: Path) -> None:
@@ -21,10 +17,9 @@ def test_prompt_command_outputs_markdown_sections(tmp_path: Path) -> None:
     write_file(repo, "src/auth.py", "ALLOW=True\nTOKEN=supersecret123456\n")
     diff_text = git(repo, "diff", "--no-color")
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["prompt", "--repo", str(repo), "--stdin", "--redact-secrets"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     assert "# Diff AI LLM Handoff" in result.stdout
@@ -45,8 +40,7 @@ def test_bundle_command_creates_expected_files(tmp_path: Path) -> None:
     diff_text = git(repo, "diff", "--no-color")
 
     out_dir = tmp_path / "bundle-out"
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         [
             "bundle",
             "--repo",
@@ -58,7 +52,7 @@ def test_bundle_command_creates_expected_files(tmp_path: Path) -> None:
             "minimal",
             "--redact-secrets",
         ],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
 
@@ -95,10 +89,9 @@ def test_bundle_command_writes_zip_when_requested(tmp_path: Path) -> None:
     diff_text = git(repo, "diff", "--no-color")
 
     out_zip = tmp_path / "handoff.zip"
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["bundle", "--repo", str(repo), "--stdin", "--out", str(out_zip), "--zip"],
-        input=diff_text,
+        input_text=diff_text,
     )
     assert result.exit_code == 0
     assert out_zip.exists()
