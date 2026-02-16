@@ -181,7 +181,7 @@ diff-ai score --repo . --base "$BASE_SHA" --head "$HEAD_SHA" --format json --fai
 5. Apply patch and add tests.
 6. Re-run score until below target.
 
-Example:
+Example (`examples/config.toml`):
 
 ```bash
 # 1) analyze
@@ -270,22 +270,22 @@ Example:
 
 ```toml
 format = "json"
-fail_above = 40
-include = ["src/**"]
-exclude = ["docs/**"]
+fail_above = 45
+include = ["src/**", "auth/**", "db/**"]
+exclude = ["docs/**", "examples/**"]
 
 [objective]
-name = "feature_oneshot" # or "security_strict"
-mode = "standard"        # fast|standard|deep
+name = "feature_oneshot"
+mode = "standard"
 budget_seconds = 15
 
 [plugins]
 include_builtin = true
-enable = []              # optional explicit plugin IDs
+enable = []
 disable = []
 
 [objective.packs]
-enable = []              # example: ["security"]
+enable = []
 disable = []
 
 [objective.weights]
@@ -297,46 +297,57 @@ quality = 1.00
 profile = 1.00
 
 [rules]
-enable = ["magnitude", "critical_paths", "test_signals", "profile_signals"] # optional override
+enable = [
+  "magnitude",
+  "critical_paths",
+  "test_signals",
+  "dependency_changes",
+  "config_changes",
+  "dangerous_patterns",
+  "error_handling",
+  "api_surface",
+  "docs_only",
+  "destructive_changes",
+]
 disable = ["docs_only"]
 
 [llm]
-style = "paranoid"
-persona = "security"
-target_score = 25
+style = "thorough"
+persona = "reviewer"
+target_score = 30
 include_diff = "top-hunks"
 include_snippets = "risky-only"
-max_bytes = 100000
+max_bytes = 120000
 redact_secrets = true
 rubric = [
-  "do not break API contracts",
-  "add regression tests for security-sensitive changes",
+  "keep patch minimal and focused",
+  "do not change public API contracts without tests",
+  "add regression tests for risky code paths",
+  "explain rollback considerations for migrations/infra changes",
 ]
 
 [profile.paths]
 critical = [
-  { glob = "src/payments/**", points = 20, reason = "money movement path" },
-  { glob = "src/auth/**", points = 16, reason = "authentication boundary" },
+  { glob = "src/core/**", points = 14, reason = "core feature behavior" },
 ]
 sensitive = [
-  { glob = "infra/**", points = 10, reason = "deploy surface" },
+  { glob = "infra/**", points = 10, reason = "deploy/runtime surface" },
 ]
 
 [profile.patterns]
 unsafe_added = [
-  { regex = "\\beval\\(", points = 12, reason = "dynamic eval introduced" },
-  { regex = "shell\\s*=\\s*True", points = 10, reason = "shell execution enabled" },
+  { regex = "\\bTODO\\b", points = 4, reason = "deferred work marker in code path" },
 ]
 
 [profile.tests]
-required_for = ["src/payments/**", "infra/**"]
-test_globs = ["tests/**", "**/*_test.py"]
+required_for = ["src/**", "infra/**"]
+test_globs = ["tests/**", "**/test_*.py", "**/*_test.py"]
 ```
 
 Objective notes:
 - `feature_oneshot` (default): logic/integration/test coverage first; security pack is opt-in.
 - `security_strict`: enables security-focused rules and higher security weighting.
-- Explicit `[rules].enable` still overrides pack defaults when you need a custom set.
+- Keep `[rules].enable` explicit. Do not comment it out to game scores.
 - Plugins are scheduled by `objective.mode` and `objective.budget_seconds`.
   - `fast`: run only low-cost plugins.
   - `standard`: balanced plugin coverage (default).
@@ -345,6 +356,7 @@ Objective notes:
   - `deferred_work_markers` (logic, ~1s)
   - `cross_layer_touchpoints` (integration, ~4s)
   - `network_exposure_probe` (security, ~3s)
+- Keep `[profile.paths]`, `[profile.patterns]`, and `[profile.tests]` in sync with the repo; add and remove entries as the codebase evolves.
 
 Inspect resolved config:
 

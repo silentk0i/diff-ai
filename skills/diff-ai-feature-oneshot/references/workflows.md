@@ -11,6 +11,13 @@ diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
 diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
 ```
 
+Before patching, update profile sections in `.diff-ai.toml`:
+
+- Add/remove `[profile.paths].critical` and `sensitive` globs for real critical/sensitive areas.
+- Add/remove `[profile.patterns].unsafe_added` regexes based on observed repo risk patterns.
+- Add/remove `[profile.tests].required_for` and refine `test_globs` to match actual test layout.
+- Keep `[rules].enable` present; do not comment it out to lower score.
+
 After code + tests:
 
 ```bash
@@ -71,3 +78,9 @@ Stop when all are true:
 - no high-priority logic/integration findings remain
 - changed behavior has explicit test coverage
 - residual risk is documented with smallest next step
+
+## Output Hygiene
+
+- Do not emit full diff text or full prompt markdown in final response.
+- Summarize key command outputs only.
+- End cleanly after `Residual Risk`.

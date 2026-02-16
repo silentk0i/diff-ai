@@ -14,9 +14,10 @@ Use `diff-ai` to run an objective-driven, deterministic review loop focused on l
 1. Ensure config exists and validates.
 2. Preview plugin schedule under current mode/budget.
 3. Run baseline score.
-4. Patch minimally to address highest-value logic/integration/test findings.
-5. Add or update tests that prove changed behavior.
-6. Re-score until at or below target.
+4. Update config profile sections to match the repo.
+5. Patch minimally to address highest-value logic/integration/test findings.
+6. Add or update tests that prove changed behavior.
+7. Re-score until at or below target.
 
 Run:
 
@@ -43,6 +44,12 @@ diff-ai score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_
 - Tune plugin and pack coverage with:
   - `[objective.packs].enable/disable`
   - `[plugins].enable/disable`
+- Keep `[rules].enable` explicit and stable unless the user explicitly asks to change rule coverage.
+- Keep repo-specific profile sections current:
+  - `[profile.paths]` (critical/sensitive paths)
+  - `[profile.patterns]` (unsafe patterns)
+  - `[profile.tests]` (required_for/test_globs)
+- Add obsolete entry cleanup to every config update pass.
 
 ## Emit Response Contract
 
@@ -55,6 +62,8 @@ Use this exact structure in responses:
 5. `Re-Score` (new score, delta, pass/fail)
 6. `Residual Risk` (remaining gaps and smallest next step)
 
+Do not append raw full diffs, full prompt markdown, or full changed-file dumps after the response.
+
 ## Enforce Guardrails
 
 - Run tools directly; do not ask the user to run commands.
@@ -62,6 +71,8 @@ Use this exact structure in responses:
 - Keep patches behavior-preserving unless change is explicitly required.
 - Add tests for changed behavior, contracts, and failure paths.
 - If a command fails, show recovery attempt and smallest safe next action.
+- Never reduce score by disabling rules/plugins/packs unless the user explicitly requests a policy change.
+- Keep final output concise and end at `Residual Risk`.
 
 ## Use References
 

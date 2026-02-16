@@ -1,2 +1,0 @@
-ff444ad827cdce1c6e4240d1217ac78356c68d9f853049c44f49325945970a63  diff-ai-feature-oneshot-codex-v0.1.0.zip
-f34a8322eed35031ecb32faeed8805b2cf30d50a59e181da7622e06e6f1dc9d8  diff-ai-feature-oneshot-claude-v0.1.0.zip

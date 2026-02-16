@@ -54,3 +54,20 @@ rubric = [
   "add regression tests for risky code paths",
   "explain rollback considerations for migrations/infra changes",
 ]
+
+[profile.paths]
+critical = [
+  { glob = "src/core/**", points = 14, reason = "core feature behavior" },
+]
+sensitive = [
+  { glob = "infra/**", points = 10, reason = "deploy/runtime surface" },
+]
+
+[profile.patterns]
+unsafe_added = [
+  { regex = "\\bTODO\\b", points = 4, reason = "deferred work marker in code path" },
+]
+
+[profile.tests]
+required_for = ["src/**", "infra/**"]
+test_globs = ["tests/**", "**/test_*.py", "**/*_test.py"]

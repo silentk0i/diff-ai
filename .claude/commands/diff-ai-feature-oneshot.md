@@ -23,22 +23,28 @@ diff-ai config-validate --repo . --config .diff-ai.toml --format json
 diff-ai plugins --repo . --config .diff-ai.toml --format json --dry-run
 ```
 
-3. Baseline score and findings.
+3. Ensure `.diff-ai.toml` profile sections are repo-specific and current:
+- update/add/remove `[profile.paths]` entries based on actual critical/sensitive paths
+- update/add/remove `[profile.patterns]` entries based on repo-specific risky patterns
+- update/add/remove `[profile.tests]` entries based on real test layout and required coverage
+- keep `[rules].enable` explicit; do not comment it out to lower score
+
+4. Baseline score and findings.
 ```bash
 diff-ai score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json
 ```
 
-4. Build prompt artifact for patch planning.
+5. Build prompt artifact for patch planning and write to a file (do not print full markdown/diff in response).
 ```bash
 diff-ai prompt --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" \
   --target-score <target_score> \
   --include-diff top-hunks \
   --max-bytes 120000 \
   --redact-secrets \
-  --format markdown
+  --format markdown > /tmp/diff-ai-prompt.md
 ```
 
-5. Propose and apply the smallest safe patch plus tests, then re-score.
+6. Propose and apply the smallest safe patch plus tests, then re-score.
 ```bash
 diff-ai score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json --fail-above <target_score>
 ```
@@ -50,3 +56,7 @@ Response format:
 4. Tests
 5. Re-Score
 6. Residual Risk
+
+Output hygiene:
+- Do not dump full diffs, full prompt markdown, or full changed-file content in the final response.
+- Keep finish concise and stop at `Residual Risk`.
