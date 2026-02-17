@@ -15,6 +15,12 @@ Resolve the bundled runtime command first:
 DIFF_AI_BIN="${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/diff-ai"
 ```
 
+If the user wants this workflow enforced across turns without re-invoking the skill each turn, install repo policy once:
+
+```bash
+"${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/install-agents-policy.sh" --repo . --mode ai-task
+```
+
 ## Run Workflow
 
 Choose review mode:

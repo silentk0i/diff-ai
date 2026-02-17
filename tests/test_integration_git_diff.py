@@ -77,8 +77,7 @@ def test_test_signals_trigger_when_tests_deleted(tmp_path) -> None:
 
     findings = [item for item in result.findings if item.rule_id == "test_signals"]
     assert any(
-        item.scope == "file:tests/test_service.py" and item.points == 16
-        for item in findings
+        item.scope == "file:tests/test_service.py" and item.points == 16 for item in findings
     )
 
 

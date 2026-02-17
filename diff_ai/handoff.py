@@ -55,9 +55,7 @@ def build_prompt_markdown(
         "- Top 5 findings:",
     ]
     for finding in top_findings:
-        lines.append(
-            f"  - `{finding.rule_id}` ({finding.points:+d}) {finding.message}"
-        )
+        lines.append(f"  - `{finding.rule_id}` ({finding.points:+d}) {finding.message}")
     if not top_findings:
         lines.append("  - No findings were produced.")
 
@@ -115,9 +113,7 @@ def build_prompt_markdown(
                 "revise patch to reduce risk below target-score; add tests; keep changes "
                 "minimal; explain what you changed"
             ),
-            (
-                f"Act as a {spec.persona} and respond in a {spec.style} review style."
-            ),
+            (f"Act as a {spec.persona} and respond in a {spec.style} review style."),
             "",
             "## Checklist",
             "- Run repository test command(s) and include failing/passing evidence.",

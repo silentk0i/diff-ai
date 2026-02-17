@@ -47,6 +47,26 @@ state_file = ".diff-ai-task-state.json"
 
 Or override per command with `--review-mode ai-task|milestone`.
 
+### Keep It Running Across Turns (Codex `AGENTS.md`)
+
+Skills are often turn-scoped. If you want diff-ai to run after every AI coding task without re-invoking the skill each turn, install a repo `AGENTS.md` policy block once:
+
+```bash
+"${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/install-agents-policy.sh" \
+  --repo . \
+  --mode ai-task
+```
+
+For milestone mode policy instead:
+
+```bash
+"${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/install-agents-policy.sh" \
+  --repo . \
+  --mode milestone
+```
+
+The installer is idempotent and updates only the managed diff-ai policy block.
+
 ### Codex
 
 ```bash

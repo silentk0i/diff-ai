@@ -47,9 +47,7 @@ class ProfileSignalsRule:
             findings.extend(self._pattern_findings(file_diff, self._profile.unsafe_added))
 
         required_matches = [
-            path
-            for path in changed_paths
-            if _matches_any(path, self._profile.tests.required_for)
+            path for path in changed_paths if _matches_any(path, self._profile.tests.required_for)
         ]
         if required_matches and not test_changed:
             findings.append(
@@ -113,8 +111,7 @@ class ProfileSignalsRule:
                                 points=signal.points,
                                 message="Profile unsafe pattern added.",
                                 evidence=(
-                                    f"{file_diff.path} matches /{signal.regex}/ "
-                                    f"({signal.reason})."
+                                    f"{file_diff.path} matches /{signal.regex}/ ({signal.reason})."
                                 ),
                                 scope=f"file:{file_diff.path}",
                                 suggestion="Refactor to avoid configured unsafe pattern.",

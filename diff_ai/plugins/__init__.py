@@ -158,7 +158,8 @@ def schedule_plugin_rules(
         ]
     else:
         candidate_ids = [
-            info.plugin_id for info in sorted(infos, key=lambda item: item.priority, reverse=True)
+            info.plugin_id
+            for info in sorted(infos, key=lambda item: item.priority, reverse=True)
             if info.plugin_id not in disabled
         ]
 
@@ -244,8 +245,7 @@ class DeferredWorkMarkersPlugin(PluginBase):
                     points=min(10, 4 + len(markers)),
                     message="Deferred implementation marker added.",
                     evidence=(
-                        f"{path} adds TODO/FIXME-style markers: "
-                        f"{', '.join(sorted(markers)[:3])}."
+                        f"{path} adds TODO/FIXME-style markers: {', '.join(sorted(markers)[:3])}."
                     ),
                     scope=f"file:{path}",
                     suggestion=(
@@ -354,7 +354,7 @@ class NetworkExposureProbePlugin(PluginBase):
 
     _TOKENS = (
         "0.0.0.0",
-        "allow_origins=[\"*\"]",
+        'allow_origins=["*"]',
         "access-control-allow-origin: *",
         "verify=false",
         "insecure_skip_verify",

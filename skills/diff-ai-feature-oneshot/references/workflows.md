@@ -2,6 +2,12 @@
 
 ## Baseline Loop
 
+Install persistent AGENTS policy (recommended for Codex multi-turn sessions):
+
+```bash
+"${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/install-agents-policy.sh" --repo . --mode ai-task
+```
+
 Use this loop for one-shot feature hardening:
 
 ```bash

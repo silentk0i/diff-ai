@@ -44,7 +44,7 @@ def test_cli_score_json_includes_plugin_execution_metadata(tmp_path: Path) -> No
     (repo / ".diff-ai.toml").write_text(
         "\n".join(
             [
-                "format = \"json\"",
+                'format = "json"',
                 "",
                 "[objective]",
                 'name = "feature_oneshot"',
@@ -84,9 +84,7 @@ def test_cli_score_json_includes_plugin_execution_metadata(tmp_path: Path) -> No
     run = next(item for item in plugin_runs if item["plugin_id"] == "cross_layer_touchpoints")
     assert run["status"] == "ran"
     assert run["findings"] >= 1
-    assert any(
-        item["rule_id"] == "plugin_cross_layer_touchpoints" for item in payload["findings"]
-    )
+    assert any(item["rule_id"] == "plugin_cross_layer_touchpoints" for item in payload["findings"])
 
 
 def test_cli_plugins_command_json_shows_dry_run_schedule(tmp_path: Path) -> None:

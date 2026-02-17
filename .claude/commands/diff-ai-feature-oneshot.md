@@ -17,6 +17,12 @@ Set runtime command:
 DIFF_AI_BIN="./.claude/tools/diff-ai-feature-oneshot/scripts/diff-ai"
 ```
 
+For Codex projects, if persistent cross-turn enforcement is required, install AGENTS policy once:
+
+```bash
+"${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/install-agents-policy.sh" --repo . --mode ai-task
+```
+
 Execute this workflow:
 
 1. Ensure config exists and validates.

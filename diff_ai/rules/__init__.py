@@ -226,11 +226,7 @@ def _candidate_rule_ids(
     specs: list[_RuleSpec],
     active_packs: set[str],
 ) -> list[str]:
-    return [
-        spec.rule_id
-        for spec in specs
-        if active_packs.intersection(spec.packs)
-    ]
+    return [spec.rule_id for spec in specs if active_packs.intersection(spec.packs)]
 
 
 def _build_category_weights(
