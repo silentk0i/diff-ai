@@ -15,6 +15,38 @@ Artifacts:
 - `releases/diff-ai-feature-oneshot-claude-v<VERSION>.zip`
 - `releases/SHA256SUMS.txt`
 
+### Why `config.toml` Matters
+
+`diff-ai` is deterministic, and `config.toml` is what makes it repo-aware.
+Without a tuned config, scoring is generic. With a tuned config, the skill reflects your codebase's real risk profile.
+
+Start from `examples/config.toml`, then copy it to `.diff-ai.toml` in your repo and customize:
+- `[profile.paths]`: critical/sensitive areas (auth, payments, infra, migrations, etc.)
+- `[profile.patterns]`: risky patterns specific to your stack
+- `[profile.tests]`: where tests live and which paths require tests
+- `[rules]` and `[objective]`: analysis policy and speed/coverage tradeoffs
+
+The skill can generate `.diff-ai.toml` and update sections during its workflow.
+Treat those edits as suggestions: review them, keep what matches your repo, and change anything that does not fit your standards.
+
+This is the main mechanism that molds diff-ai behavior to your own system.
+
+### Review Modes
+
+`diff-ai` supports two diff scopes:
+- `ai-task`: review only what changed since the last AI checkpoint (includes committed and uncommitted changes). Best for iterative AI task loops.
+- `milestone`: review an explicit commit range (`base..head`).
+
+Set in config:
+
+```toml
+[review]
+mode = "ai-task" # or "milestone"
+state_file = ".diff-ai-task-state.json"
+```
+
+Or override per command with `--review-mode ai-task|milestone`.
+
 ### Codex
 
 ```bash
@@ -38,7 +70,9 @@ unzip -o releases/diff-ai-feature-oneshot-claude-v<VERSION>.zip -d .
 Use:
 
 ```text
-/diff-ai-feature-oneshot origin/main HEAD 30
+/diff-ai-feature-oneshot ai-task
+# milestone example:
+# /diff-ai-feature-oneshot milestone origin/main HEAD 30
 ```
 
 ## Runtime Command (Direct)
@@ -60,8 +94,9 @@ Examples:
 ```bash
 "$DIFF_AI_BIN" --help
 "$DIFF_AI_BIN" config-init --out .diff-ai.toml
-"$DIFF_AI_BIN" score --repo . --base origin/main --head HEAD --format json
-"$DIFF_AI_BIN" prompt --repo . --base origin/main --head HEAD --format markdown > prompt.md
+"$DIFF_AI_BIN" score --repo . --review-mode ai-task --format json
+"$DIFF_AI_BIN" score --repo . --review-mode milestone --base origin/main --head HEAD --format json
+"$DIFF_AI_BIN" prompt --repo . --review-mode ai-task --format markdown > prompt.md
 ```
 
 Config example: `examples/config.toml`

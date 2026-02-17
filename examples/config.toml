@@ -13,6 +13,10 @@ include_builtin = true
 enable = []
 disable = []
 
+[review]
+mode = "ai-task"
+state_file = ".diff-ai-task-state.json"
+
 [objective.packs]
 enable = []
 disable = []

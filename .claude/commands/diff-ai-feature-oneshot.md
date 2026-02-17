@@ -1,11 +1,12 @@
 ---
 description: Run diff-ai one-shot feature hardening loop focused on logic, integration, and tests.
-argument-hint: [base_ref] [head_ref] [target_score]
+argument-hint: [review_mode] [base_ref] [head_ref] [target_score]
 ---
 
 Use `diff-ai` to reduce feature risk with `feature_oneshot` objective by default.
 
 Parse arguments:
+- `review_mode`: default `ai-task`, allowed `ai-task|milestone`
 - `base_ref`: default `origin/main`
 - `head_ref`: default `HEAD`
 - `target_score`: default `30`
@@ -36,13 +37,32 @@ Execute this workflow:
 - keep `[rules].enable` explicit; do not comment it out to lower score
 
 4. Baseline score and findings.
+
+If `review_mode=ai-task` (default), scope to changes since last AI checkpoint (includes committed and uncommitted work):
 ```bash
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json
+```
+
+If `review_mode=milestone`, scope to explicit commit range:
+```bash
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode milestone --base "<base_ref>" --head "<head_ref>" --format json
 ```
 
 5. Build prompt artifact for patch planning and write to a file (do not print full markdown/diff in response).
+
+For `review_mode=ai-task`:
 ```bash
-"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" \
+"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --review-mode ai-task \
+  --target-score <target_score> \
+  --include-diff top-hunks \
+  --max-bytes 120000 \
+  --redact-secrets \
+  --format markdown > /tmp/diff-ai-prompt.md
+```
+
+For `review_mode=milestone`:
+```bash
+"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --review-mode milestone --base "<base_ref>" --head "<head_ref>" \
   --target-score <target_score> \
   --include-diff top-hunks \
   --max-bytes 120000 \
@@ -51,8 +71,15 @@ Execute this workflow:
 ```
 
 6. Propose and apply the smallest safe patch plus tests, then re-score.
+
+For `review_mode=ai-task`:
 ```bash
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<base_ref>" --head "<head_ref>" --format json --fail-above <target_score>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json --fail-above <target_score>
+```
+
+For `review_mode=milestone`:
+```bash
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode milestone --base "<base_ref>" --head "<head_ref>" --format json --fail-above <target_score>
 ```
 
 Response format:

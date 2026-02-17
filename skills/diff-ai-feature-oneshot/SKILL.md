@@ -17,6 +17,10 @@ DIFF_AI_BIN="${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/
 
 ## Run Workflow
 
+Choose review mode:
+- `ai-task` (default): review changes since last AI checkpoint, including committed and uncommitted edits.
+- `milestone`: review explicit commit range (`base..head`).
+
 1. Ensure config exists and validates.
 2. Preview plugin schedule under current mode/budget.
 3. Run baseline score.
@@ -31,13 +35,17 @@ Run:
 "$DIFF_AI_BIN" config-init --out .diff-ai.toml
 "$DIFF_AI_BIN" config-validate --repo . --config .diff-ai.toml --format json
 "$DIFF_AI_BIN" plugins --repo . --config .diff-ai.toml --format json --dry-run
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json
+# milestone alternative:
+# "$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode milestone --base "<BASE_REV>" --head "<HEAD_REV>" --format json
 ```
 
 After edits and tests:
 
 ```bash
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json --fail-above <TARGET_SCORE>
+# milestone alternative:
+# "$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode milestone --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
 ```
 
 ## Apply Objective Policy

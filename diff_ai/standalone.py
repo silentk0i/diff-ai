@@ -17,7 +17,7 @@ from typing import Any
 from diff_ai import __version__
 from diff_ai.config import AppConfig, default_config_template, load_app_config
 from diff_ai.diff_parser import FileDiff, parse_unified_diff
-from diff_ai.git import GitError, get_diff_between, get_working_tree_diff
+from diff_ai.git import GitError
 from diff_ai.handoff import (
     PromptSpec,
     build_findings_markdown,
@@ -29,6 +29,13 @@ from diff_ai.handoff import (
     truncate_text_to_bytes,
 )
 from diff_ai.plugins import PluginRun, list_plugin_info, schedule_plugin_rules
+from diff_ai.review_mode import (
+    REVIEW_MODE_AI_TASK,
+    REVIEW_MODE_MILESTONE,
+    normalize_review_mode,
+    resolve_diff_input,
+    save_ai_task_checkpoint,
+)
 from diff_ai.rules import build_rules, list_rule_info, resolve_active_packs
 from diff_ai.rules.base import Finding, Rule
 from diff_ai.scoring import FileScore, ScoreResult, score_files
@@ -51,6 +58,9 @@ class ScoreContext:
     diff_text: str
     input_source: str
     plugin_runs: list[PluginRun]
+    resolved_base: str | None
+    resolved_head: str | None
+    review_mode: str
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -101,9 +111,10 @@ def _dispatch(args: argparse.Namespace) -> int:
 
 def _cmd_score(args: argparse.Namespace) -> int:
     app_config = _load_config_or_raise(args.repo, args.config_file)
+    review_mode = _resolve_review_mode(args.review_mode, app_config.review.mode)
     output_format = (args.format or app_config.format).lower()
     _validate_choice(output_format, {"human", "json"}, "--format")
-    _validate_diff_selection(args)
+    _validate_diff_selection(args, review_mode=review_mode)
 
     score_ctx = _prepare_score_context(
         diff_file=args.diff_file,
@@ -114,6 +125,8 @@ def _cmd_score(args: argparse.Namespace) -> int:
         include=args.include,
         exclude=args.exclude,
         app_config=app_config,
+        review_mode=review_mode,
+        review_state_file=args.review_state_file,
     )
     fail_threshold = args.fail_above if args.fail_above is not None else app_config.fail_above
 
@@ -123,9 +136,10 @@ def _cmd_score(args: argparse.Namespace) -> int:
                 _build_json_payload(
                     score_ctx.result,
                     input_source=score_ctx.input_source,
-                    base=args.base,
-                    head=args.head,
+                    base=score_ctx.resolved_base,
+                    head=score_ctx.resolved_head,
                     plugin_runs=score_ctx.plugin_runs,
+                    review_mode=score_ctx.review_mode,
                 ),
                 sort_keys=True,
             )
@@ -140,8 +154,9 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
 def _cmd_prompt(args: argparse.Namespace) -> int:
     app_config = _load_config_or_raise(args.repo, args.config_file)
+    review_mode = _resolve_review_mode(args.review_mode, app_config.review.mode)
     llm_defaults = app_config.llm
-    _validate_diff_selection(args)
+    _validate_diff_selection(args, review_mode=review_mode)
 
     resolved_style = _choice_or_default(
         value=args.style,
@@ -178,6 +193,8 @@ def _cmd_prompt(args: argparse.Namespace) -> int:
         include=args.include,
         exclude=args.exclude,
         app_config=app_config,
+        review_mode=review_mode,
+        review_state_file=args.review_state_file,
     )
 
     prompt_md = build_prompt_markdown(
@@ -211,8 +228,9 @@ def _cmd_prompt(args: argparse.Namespace) -> int:
             "max_bytes": resolved_max_bytes,
             "redact_secrets": resolved_redact,
             "input_source": score_ctx.input_source,
-            "base": args.base,
-            "head": args.head,
+            "base": score_ctx.resolved_base,
+            "head": score_ctx.resolved_head,
+            "review_mode": score_ctx.review_mode,
         },
     }
     print(json.dumps(payload, sort_keys=True))
@@ -221,8 +239,9 @@ def _cmd_prompt(args: argparse.Namespace) -> int:
 
 def _cmd_bundle(args: argparse.Namespace) -> int:
     app_config = _load_config_or_raise(args.repo, args.config_file)
+    review_mode = _resolve_review_mode(args.review_mode, app_config.review.mode)
     llm_defaults = app_config.llm
-    _validate_diff_selection(args)
+    _validate_diff_selection(args, review_mode=review_mode)
 
     resolved_style = _choice_or_default(
         value=args.style,
@@ -265,6 +284,8 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
         include=args.include,
         exclude=args.exclude,
         app_config=app_config,
+        review_mode=review_mode,
+        review_state_file=args.review_state_file,
     )
 
     selected_diff = select_diff_for_handoff(
@@ -279,7 +300,7 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
     )
     snippets_markdown = build_snippets_markdown(
         repo=args.repo,
-        revision=args.head or "HEAD",
+        revision=score_ctx.resolved_head or "HEAD",
         files=score_ctx.files,
         result=score_ctx.result,
         include_snippets=resolved_include_snippets,
@@ -305,9 +326,10 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
     findings_payload = _build_json_payload(
         score_ctx.result,
         input_source=score_ctx.input_source,
-        base=args.base,
-        head=args.head,
+        base=score_ctx.resolved_base,
+        head=score_ctx.resolved_head,
         plugin_runs=score_ctx.plugin_runs,
+        review_mode=score_ctx.review_mode,
     )
 
     if resolved_redact:
@@ -344,6 +366,7 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
                     "output": output_path,
                     "overall_score": score_ctx.result.overall_score,
                     "target_score": resolved_target_score,
+                    "review_mode": score_ctx.review_mode,
                 },
                 sort_keys=True,
             )
@@ -494,6 +517,8 @@ def _cmd_config(args: argparse.Namespace) -> int:
         f"- plugins.include_builtin: {payload['plugins']['include_builtin']}",
         f"- plugins.enable: {payload['plugins']['enable']}",
         f"- plugins.disable: {payload['plugins']['disable']}",
+        f"- review.mode: {payload['review']['mode']}",
+        f"- review.state_file: {payload['review']['state_file']}",
         f"- active_rule_ids: {payload['active_rule_ids']}",
     ]
     print("\n".join(lines))
@@ -651,17 +676,32 @@ def _add_diff_input_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--diff-file", type=Path, default=None, help="Path to unified diff file.")
     parser.add_argument("--stdin", action="store_true", help="Read unified diff from stdin.")
     _add_repo_arg(parser)
+    parser.add_argument(
+        "--review-mode",
+        default=None,
+        help="Diff scope mode: ai-task|milestone (defaults to config).",
+    )
+    parser.add_argument(
+        "--review-state-file",
+        type=Path,
+        default=None,
+        help="AI-task checkpoint file path (defaults to config).",
+    )
     parser.add_argument("--base", default=None, help="Base git revision.")
     parser.add_argument("--head", default=None, help="Head git revision.")
     parser.add_argument("--include", action="append", default=None, help="Include glob pattern.")
     parser.add_argument("--exclude", action="append", default=None, help="Exclude glob pattern.")
 
 
-def _validate_diff_selection(args: argparse.Namespace) -> None:
+def _validate_diff_selection(args: argparse.Namespace, *, review_mode: str) -> None:
     if args.diff_file is not None and args.stdin:
         raise CliUsageError("use either --diff-file or --stdin, not both")
     if (args.base is None) ^ (args.head is None):
         raise CliUsageError("provide both --base and --head together")
+    if review_mode == REVIEW_MODE_AI_TASK and args.base is not None:
+        raise CliUsageError("ai-task mode does not use --base/--head; use milestone mode")
+    if review_mode not in {REVIEW_MODE_AI_TASK, REVIEW_MODE_MILESTONE}:
+        raise CliUsageError("review mode must be one of: ai-task, milestone")
 
 
 def _validate_choice(value: str, allowed: set[str], field_name: str) -> None:
@@ -679,6 +719,13 @@ def _choice_or_default(
     resolved = (value or default).lower()
     _validate_choice(resolved, allowed, field_name)
     return resolved
+
+
+def _resolve_review_mode(raw_mode: str | None, config_mode: str) -> str:
+    try:
+        return normalize_review_mode(raw_mode, default=config_mode)
+    except ValueError as exc:
+        raise CliUsageError(str(exc)) from exc
 
 
 def _load_config_or_raise(repo: Path, config_file: Path | None = None) -> AppConfig:
@@ -740,16 +787,22 @@ def _prepare_score_context(
     include: list[str] | None,
     exclude: list[str] | None,
     app_config: AppConfig,
+    review_mode: str,
+    review_state_file: Path | None,
 ) -> ScoreContext:
     try:
-        diff_text, input_source = _resolve_diff_input(
+        resolved_diff = resolve_diff_input(
             diff_file=diff_file,
             stdin=stdin,
             repo=repo,
             base=base,
             head=head,
+            review_mode=review_mode,
+            state_file=review_state_file or Path(app_config.review.state_file),
         )
     except GitError as exc:
+        raise CliUsageError(str(exc)) from exc
+    except ValueError as exc:
         raise CliUsageError(str(exc)) from exc
 
     include_patterns = include if include is not None else app_config.include
@@ -758,33 +811,23 @@ def _prepare_score_context(
     active_packs = _resolve_active_packs_or_raise(app_config)
     plugin_rules, plugin_runs = _schedule_plugins_or_raise(app_config, active_packs=active_packs)
 
-    files = parse_unified_diff(diff_text)
+    files = parse_unified_diff(resolved_diff.diff_text)
     filtered_files = _filter_files(files, includes=include_patterns, excludes=exclude_patterns)
     result = score_files(filtered_files, rules=[*rules, *plugin_rules])
+
+    if resolved_diff.checkpoint_tree and resolved_diff.state_path:
+        save_ai_task_checkpoint(resolved_diff.state_path, resolved_diff.checkpoint_tree)
+
     return ScoreContext(
         result=result,
         files=filtered_files,
-        diff_text=diff_text,
-        input_source=input_source,
+        diff_text=resolved_diff.diff_text,
+        input_source=resolved_diff.input_source,
         plugin_runs=plugin_runs,
+        resolved_base=resolved_diff.base,
+        resolved_head=resolved_diff.head,
+        review_mode=resolved_diff.review_mode,
     )
-
-
-def _resolve_diff_input(
-    *,
-    diff_file: Path | None,
-    stdin: bool,
-    repo: Path,
-    base: str | None,
-    head: str | None,
-) -> tuple[str, str]:
-    if diff_file is not None:
-        return diff_file.read_text(encoding="utf-8"), f"diff_file:{diff_file}"
-    if stdin:
-        return sys.stdin.read(), "stdin"
-    if base is not None and head is not None:
-        return get_diff_between(repo, base, head), "git_range"
-    return get_working_tree_diff(repo), "git_working_tree"
 
 
 def _filter_files(
@@ -817,6 +860,7 @@ def _build_json_payload(
     base: str | None,
     head: str | None,
     plugin_runs: list[PluginRun] | None = None,
+    review_mode: str | None = None,
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
         "generated_at": datetime.now(tz=UTC)
@@ -830,6 +874,8 @@ def _build_json_payload(
     }
     if plugin_runs is not None:
         meta["plugins"] = [run.to_dict() for run in plugin_runs]
+    if review_mode is not None:
+        meta["review_mode"] = review_mode
 
     return {
         "overall_score": result.overall_score,

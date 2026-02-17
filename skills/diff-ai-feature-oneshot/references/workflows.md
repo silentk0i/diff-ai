@@ -9,7 +9,13 @@ DIFF_AI_BIN="${CODEX_HOME:-$HOME/.codex}/skills/diff-ai-feature-oneshot/scripts/
 "$DIFF_AI_BIN" config-init --out .diff-ai.toml
 "$DIFF_AI_BIN" config-validate --repo . --config .diff-ai.toml --format json
 "$DIFF_AI_BIN" plugins --repo . --config .diff-ai.toml --format json --dry-run
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json
+```
+
+Milestone alternative:
+
+```bash
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode milestone --base "<BASE_REV>" --head "<HEAD_REV>" --format json
 ```
 
 Before patching, update profile sections in `.diff-ai.toml`:
@@ -22,7 +28,7 @@ Before patching, update profile sections in `.diff-ai.toml`:
 After code + tests:
 
 ```bash
-"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" --format json --fail-above <TARGET_SCORE>
+"$DIFF_AI_BIN" score --repo . --config .diff-ai.toml --review-mode ai-task --format json --fail-above <TARGET_SCORE>
 ```
 
 ## Objective Presets
@@ -54,7 +60,7 @@ Increase/decrease:
 Use when handing off to another AI agent:
 
 ```bash
-"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
+"$DIFF_AI_BIN" prompt --repo . --config .diff-ai.toml --review-mode ai-task \
   --target-score <TARGET_SCORE> \
   --include-diff top-hunks \
   --max-bytes 120000 \
@@ -63,7 +69,7 @@ Use when handing off to another AI agent:
 ```
 
 ```bash
-"$DIFF_AI_BIN" bundle --repo . --config .diff-ai.toml --base "<BASE_REV>" --head "<HEAD_REV>" \
+"$DIFF_AI_BIN" bundle --repo . --config .diff-ai.toml --review-mode ai-task \
   --target-score <TARGET_SCORE> \
   --include-snippets risky-only \
   --max-bytes 120000 \

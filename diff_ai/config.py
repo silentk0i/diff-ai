@@ -144,6 +144,20 @@ class PluginsConfig:
 
 
 @dataclass(slots=True)
+class ReviewConfig:
+    """Diff collection mode for review loops."""
+
+    mode: str = "milestone"
+    state_file: str = ".diff-ai-task-state.json"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "mode": self.mode,
+            "state_file": self.state_file,
+        }
+
+
+@dataclass(slots=True)
 class AppConfig:
     """Runtime configuration values resolved from project files."""
 
@@ -157,6 +171,7 @@ class AppConfig:
     profile: ProfileConfig = field(default_factory=ProfileConfig)
     objective: ObjectiveConfig = field(default_factory=ObjectiveConfig)
     plugins: PluginsConfig = field(default_factory=PluginsConfig)
+    review: ReviewConfig = field(default_factory=ReviewConfig)
     source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -171,6 +186,7 @@ class AppConfig:
             },
             "objective": self.objective.to_dict(),
             "plugins": self.plugins.to_dict(),
+            "review": self.review.to_dict(),
             "llm": self.llm.to_dict(),
             "profile": self.profile.to_dict(),
             "source": self.source,
@@ -230,6 +246,10 @@ def default_config_template() -> str:
             "include_builtin = true",
             "enable = []",
             "disable = []",
+            "",
+            "[review]",
+            'mode = "ai-task"',
+            'state_file = ".diff-ai-task-state.json"',
             "",
             "[rules]",
             "enable = [",
@@ -320,6 +340,7 @@ def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
     rules_mapping = _as_table(mapping.get("rules"), "rules")
     objective_mapping = _as_table(mapping.get("objective"), "objective")
     plugins_mapping = _as_table(mapping.get("plugins"), "plugins")
+    review_mapping = _as_table(mapping.get("review"), "review")
     llm_mapping = _as_table(mapping.get("llm"), "llm")
     profile_mapping = _as_table(mapping.get("profile"), "profile")
 
@@ -345,6 +366,7 @@ def _from_mapping(mapping: dict[str, Any], *, source: str) -> AppConfig:
         rule_disable=_as_str_list(rules_mapping.get("disable")),
         objective=_parse_objective_config(objective_mapping),
         plugins=_parse_plugins_config(plugins_mapping),
+        review=_parse_review_config(review_mapping),
         llm=_parse_llm_config(llm_mapping),
         profile=_parse_profile_config(profile_mapping),
         source=source,
@@ -380,6 +402,17 @@ def _parse_plugins_config(value: dict[str, Any]) -> PluginsConfig:
         include_builtin=_as_bool(value.get("include_builtin", True), "plugins.include_builtin"),
         enable=_as_str_list(value.get("enable")),
         disable=_as_str_list(value.get("disable")),
+    )
+
+
+def _parse_review_config(value: dict[str, Any]) -> ReviewConfig:
+    raw_mode = str(value.get("mode", "milestone")).lower().replace("_", "-")
+    if raw_mode not in {"milestone", "ai-task"}:
+        raise ValueError("review.mode must be one of: ai-task, milestone")
+    state_file = _as_str(value.get("state_file", ".diff-ai-task-state.json"), "review.state_file")
+    return ReviewConfig(
+        mode=raw_mode,
+        state_file=state_file,
     )
 
 

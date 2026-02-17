@@ -48,6 +48,8 @@ def test_load_app_config_prefers_dot_file_over_pyproject(tmp_path: Path) -> None
     assert config.plugins.include_builtin is True
     assert config.plugins.enable == []
     assert config.plugins.disable == []
+    assert config.review.mode == "milestone"
+    assert config.review.state_file == ".diff-ai-task-state.json"
     assert config.source == str(repo / ".diff-ai.toml")
 
 
@@ -92,6 +94,25 @@ def test_load_app_config_parses_plugins_section(tmp_path: Path) -> None:
     assert config.plugins.include_builtin is False
     assert config.plugins.enable == ["deferred_work_markers"]
     assert config.plugins.disable == ["cross_layer_touchpoints"]
+
+
+def test_load_app_config_parses_review_section(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".diff-ai.toml").write_text(
+        "\n".join(
+            [
+                "[review]",
+                'mode = "ai-task"',
+                'state_file = ".custom-state.json"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_app_config(repo)
+    assert config.review.mode == "ai-task"
+    assert config.review.state_file == ".custom-state.json"
 
 
 def test_rules_command_json_lists_enabled_state_from_config(tmp_path: Path) -> None:
@@ -183,6 +204,8 @@ def test_config_command_json_shows_resolved_values(tmp_path: Path) -> None:
     assert payload["objective"]["name"] == "feature_oneshot"
     assert payload["objective"]["mode"] == "standard"
     assert payload["objective"]["budget_seconds"] == 15
+    assert payload["review"]["mode"] == "milestone"
+    assert payload["review"]["state_file"] == ".diff-ai-task-state.json"
     assert payload["source"] == str(repo / ".diff-ai.toml")
 
 
@@ -390,6 +413,8 @@ def test_config_init_and_validate_commands(tmp_path: Path) -> None:
     assert "[objective.packs]" in content
     assert "[objective.weights]" in content
     assert "[plugins]" in content
+    assert "[review]" in content
+    assert 'mode = "ai-task"' in content
     assert "[profile.paths]" in content
     assert "[profile.patterns]" in content
 
