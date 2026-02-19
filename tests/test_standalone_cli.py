@@ -24,4 +24,6 @@ def test_standalone_score_json_from_diff_file(capsys) -> None:
 
     assert exit_code == 0
     payload = json.loads(captured.out)
-    assert set(payload.keys()) == {"overall_score", "files", "findings", "meta"}
+    assert {"overall_score", "files", "findings", "meta", "final_score_0_100"} <= set(
+        payload.keys()
+    )

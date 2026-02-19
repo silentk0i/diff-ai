@@ -19,8 +19,25 @@ def test_cli_score_json_from_stdin_has_schema_keys(tmp_path) -> None:
     assert result.exit_code == 0
 
     payload = json.loads(result.stdout)
-    assert set(payload.keys()) == {"overall_score", "files", "findings", "meta"}
+    assert {
+        "overall_score",
+        "final_score_0_100",
+        "raw_points_total",
+        "raw_points_by_category",
+        "capped_points_by_category",
+        "transformed_score",
+        "reasons_topN",
+        "files",
+        "findings",
+        "meta",
+    } <= set(payload.keys())
     assert isinstance(payload["overall_score"], int)
+    assert isinstance(payload["final_score_0_100"], int)
+    assert isinstance(payload["raw_points_total"], int)
+    assert isinstance(payload["raw_points_by_category"], dict)
+    assert isinstance(payload["capped_points_by_category"], dict)
+    assert isinstance(payload["transformed_score"], float)
+    assert isinstance(payload["reasons_topN"], list)
     assert isinstance(payload["files"], list)
     assert isinstance(payload["findings"], list)
     assert isinstance(payload["meta"], dict)

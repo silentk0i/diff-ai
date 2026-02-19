@@ -879,6 +879,12 @@ def _build_json_payload(
 
     return {
         "overall_score": result.overall_score,
+        "final_score_0_100": result.final_score_0_100,
+        "raw_points_total": result.raw_points_total,
+        "raw_points_by_category": result.raw_points_by_category,
+        "capped_points_by_category": result.capped_points_by_category,
+        "transformed_score": result.transformed_score,
+        "reasons_topN": result.reasons_topN,
         "files": [_serialize_file(item) for item in result.files],
         "findings": [_serialize_finding(item) for item in result.findings],
         "meta": meta,

@@ -86,10 +86,14 @@ def test_score_diff_text_aggregates_default_rules() -> None:
     assert "critical_paths" not in rule_ids
 
 
-def test_score_clamps_to_100() -> None:
+def test_score_uses_capped_diminishing_model_for_overall_score() -> None:
     files = parse_unified_diff(_build_replace_diff("src/a.py", ["a"], ["b"]))
     result = score_files(files, rules=[_MaxRule()])
-    assert result.overall_score == 100
+    assert 0 < result.overall_score < 100
+    assert result.overall_score == result.final_score_0_100
+    assert result.raw_points_total == 500
+    assert result.raw_points_by_category["unknown"] == 500
+    assert result.capped_points_by_category["unknown"] == 20
 
 
 @dataclass(slots=True)

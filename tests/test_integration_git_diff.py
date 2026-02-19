@@ -62,7 +62,7 @@ def test_golden_test_signals_when_src_changes_without_tests(tmp_path) -> None:
 
     findings = [item for item in result.findings if item.rule_id == "test_signals"]
     assert any(item.points == 24 and item.scope == "overall" for item in findings)
-    assert 24 <= result.overall_score <= 45
+    assert 40 <= result.overall_score <= 70
 
 
 def test_test_signals_trigger_when_tests_deleted(tmp_path) -> None:
